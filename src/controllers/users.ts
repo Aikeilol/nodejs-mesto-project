@@ -63,7 +63,7 @@ export const createUser = async (req: Request, res: Response) => {
 
 export const updateUserProfile = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user._id;
+    const userId = req.user?._id;
     const { name, about } = req.body;
 
     if (!name || !about) {
@@ -90,7 +90,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
 
 export const updateUserAvatar = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user._id;
+    const userId = req.user?._id;
     const { avatar } = req.body;
 
     if (!avatar) {

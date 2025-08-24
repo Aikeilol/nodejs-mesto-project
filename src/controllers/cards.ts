@@ -16,7 +16,7 @@ export const getCards = async (req: Request, res: Response) => {
 export const createCard = async (req: Request, res: Response) => {
   try {
     const { name, link } = req.body;
-    const ownerId = (req as any).user._id;
+    const ownerId = req.user?._id;
 
     if (!name || !link) {
       return res.status(BAD_REQUEST).json({
@@ -37,7 +37,7 @@ export const createCard = async (req: Request, res: Response) => {
 export const deleteCard = async (req: Request, res: Response) => {
   try {
     const { cardId } = req.params;
-    const userId = (req as any).user._id;
+    const userId = req.user?._id;
 
     const card = await Card.findById(cardId);
 
@@ -55,7 +55,7 @@ export const deleteCard = async (req: Request, res: Response) => {
 export const likeCard = async (req: Request, res: Response) => {
   try {
     const { cardId } = req.params;
-    const userId = (req as any).user._id;
+    const userId = req.user?._id;
 
     const card = await Card.findByIdAndUpdate(
       cardId,
@@ -76,7 +76,7 @@ export const likeCard = async (req: Request, res: Response) => {
 export const dislikeCard = async (req: Request, res: Response) => {
   try {
     const { cardId } = req.params;
-    const userId = (req as any).user._id;
+    const userId = req.user?._id;
 
     const card = await Card.findByIdAndUpdate(
       cardId,

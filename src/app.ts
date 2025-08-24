@@ -4,6 +4,7 @@ import express, {
 import mongoose from 'mongoose';
 import usersRouter from './routes/users';
 import cardsRouter from './routes/cards';
+import notFoundHandler from './middleware/notFoundHandler';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +26,7 @@ mongoose
   });
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  (req as any).user = {
+  req.user = {
     _id: '68a9d013c7bcfe614c28ef7a',
   };
 
@@ -34,6 +35,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);
+app.use('*', notFoundHandler);
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
