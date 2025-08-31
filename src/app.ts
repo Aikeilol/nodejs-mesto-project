@@ -1,17 +1,28 @@
 import express, {
-  Application, NextFunction, Request, Response,
+  Application,
 } from 'express';
+// import cors from 'cors';
 import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
 import usersRouter from './routes/users';
 import cardsRouter from './routes/cards';
 import notFoundHandler from './middleware/notFoundHandler';
+import { createUser, login } from './controllers/users';
+import logRequests from './middleware/requestLogger';
+import logErrors from './middleware/errorLogger';
+import errorHandler from './middleware/errorHandler';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = 'mongodb://localhost:27017/mestodb';
+// отключить корс
+// app.use(cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+app.use(logRequests);
 
 mongoose
   .connect(MONGODB_URI)
@@ -25,17 +36,15 @@ mongoose
     process.exit(1);
   });
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-  req.user = {
-    _id: '68a9d013c7bcfe614c28ef7a',
-  };
-
-  next();
-});
-
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);
-app.use('*', notFoundHandler);
+
+app.post('/signin', login);
+app.post('/signup', createUser);
+app.use('*path', notFoundHandler);
+
+app.use(logErrors);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console

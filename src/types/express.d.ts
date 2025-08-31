@@ -4,10 +4,12 @@ import { Express } from 'express';
 
 declare global {
   namespace Express {
+    interface User {
+      _id: string;
+    }
+
     interface Request {
-      user?: {
-        _id: string;
-      };
+      user?: User;
     }
   }
 }

@@ -16,3 +16,10 @@ node_modules
 
 # Typescript build
 dist
+
+# Logs
+*.log
+request.log
+error.log
+logs/
+npm-debug.log*
