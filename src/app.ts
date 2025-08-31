@@ -3,6 +3,7 @@ import express, {
 } from 'express';
 // import cors from 'cors';
 import mongoose from 'mongoose';
+import { errors as celebrateErrors } from 'celebrate';
 import cookieParser from 'cookie-parser';
 import usersRouter from './routes/users';
 import cardsRouter from './routes/cards';
@@ -10,7 +11,8 @@ import notFoundHandler from './middleware/notFoundHandler';
 import { createUser, login } from './controllers/users';
 import logRequests from './middleware/requestLogger';
 import logErrors from './middleware/errorLogger';
-import errorHandler from './middleware/errorHandler';
+import { errorHandler } from './middleware/errorHandler';
+import { validateCreateUser, validateLogin } from './middleware/validation';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -39,10 +41,11 @@ mongoose
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);
 
-app.post('/signin', login);
-app.post('/signup', createUser);
+app.post('/signin', validateLogin, login);
+app.post('/signup', validateCreateUser, createUser);
 app.use('*path', notFoundHandler);
 
+app.use(celebrateErrors());
 app.use(logErrors);
 app.use(errorHandler);
 

@@ -1,12 +1,19 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import validator from 'validator';
+import mongoose from 'mongoose';
 import {
-  BAD_REQUEST, CREATED, NOT_FOUND, OK, UNAUTHORIZED,
+  CREATED, OK,
 } from '../constants/status-codes';
 import { AuthRequest } from '../types';
 import { User } from '../models';
 import { avatarRegex } from '../models/user';
+import {
+  ValidationError,
+  AuthError,
+  NotFoundError,
+  ConflictError,
+} from '../errors';
 
 const JWT_SECRET = 'secret-key';
 const JWT_EXPIRES_IN = '7d';
@@ -14,9 +21,9 @@ const JWT_EXPIRES_IN = '7d';
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await User.find();
-    return res.status(OK).json(users);
+    res.status(OK).json(users);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
@@ -26,12 +33,12 @@ export const getUserById = async (req: AuthRequest, res: Response, next: NextFun
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(NOT_FOUND).json({ message: 'Пользователь не найден' });
+      throw new NotFoundError('Пользователь не найден');
     }
 
-    return res.status(OK).json(user);
+    res.status(OK).json(user);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
@@ -42,27 +49,25 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
     } = req.body;
 
     if (!email || !password) {
-      return res.status(BAD_REQUEST).json({
-        message: 'Поля (email, password) обязательны для заполнения',
-      });
+      throw new ValidationError('Поля (email, password) обязательны для заполнения');
     }
 
     if (!validator.isEmail(email)) {
-      return res.status(BAD_REQUEST).json({ message: 'Некорректный формат email' });
+      throw new ValidationError('Некорректный формат email');
     }
 
     if (password.length < 6) {
-      return res.status(BAD_REQUEST).json({ message: 'Неверный пароль' });
+      throw new ValidationError('Минимальная длина пароля - 6 символов');
     }
 
     if (avatar && !avatarRegex.test(avatar)) {
-      res.status(BAD_REQUEST).json({ message: 'Некорректный URL аватара' });
+      throw new ValidationError('Некорректный URL аватара');
     }
 
     const user = new User({
       name, about, avatar, password, email,
     });
-    const savedUser = (await user.save());
+    const savedUser = await user.save();
 
     const userResponse = {
       _id: savedUser._id,
@@ -72,9 +77,15 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
       email: savedUser.email,
     };
 
-    return res.status(CREATED).json(userResponse);
+    res.status(CREATED).json(userResponse);
   } catch (error) {
-    return next(error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      next(new ValidationError('Ошибка валидации данных'));
+    } else if ((error as any).code === 11000) {
+      next(new ConflictError('Пользователь с таким email уже существует'));
+    } else {
+      next(error);
+    }
   }
 };
 
@@ -84,9 +95,7 @@ export const updateUserProfile = async (req: AuthRequest, res: Response, next: N
     const { name, about } = req.body;
 
     if (!name || !about) {
-      return res.status(BAD_REQUEST).json({
-        message: 'Поля (name, about) обязательны для заполнения',
-      });
+      throw new ValidationError('Поля (name, about) обязательны для заполнения');
     }
 
     const user = await User.findByIdAndUpdate(
@@ -96,12 +105,16 @@ export const updateUserProfile = async (req: AuthRequest, res: Response, next: N
     );
 
     if (!user) {
-      return res.status(NOT_FOUND).json({ message: 'Пользователь не найден' });
+      throw new NotFoundError('Пользователь не найден');
     }
 
-    return res.status(OK).json(user);
+    res.status(OK).json(user);
   } catch (error) {
-    return next(error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      next(new ValidationError('Ошибка валидации данных'));
+    } else {
+      next(error);
+    }
   }
 };
 
@@ -109,17 +122,15 @@ export const getUsersMe = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const userId = req.user?._id;
 
-    const user = await User.findById(
-      userId,
-    );
+    const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(NOT_FOUND).json({ message: 'Пользователь не найден' });
+      throw new NotFoundError('Пользователь не найден');
     }
 
-    return res.status(OK).json(user);
+    res.status(OK).json(user);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
@@ -129,13 +140,11 @@ export const updateUserAvatar = async (req: AuthRequest, res: Response, next: Ne
     const { avatar } = req.body;
 
     if (!avatar) {
-      return res.status(BAD_REQUEST).json({
-        message: 'Поле avatar обязательно для заполнения',
-      });
+      throw new ValidationError('Поле avatar обязательно для заполнения');
     }
 
     if (!avatarRegex.test(avatar)) {
-      res.status(BAD_REQUEST).json({ message: 'Некорректный URL аватара' });
+      throw new ValidationError('Некорректный URL аватара');
     }
 
     const user = await User.findByIdAndUpdate(
@@ -145,12 +154,16 @@ export const updateUserAvatar = async (req: AuthRequest, res: Response, next: Ne
     );
 
     if (!user) {
-      return res.status(NOT_FOUND).json({ message: 'Пользователь не найден' });
+      throw new NotFoundError('Пользователь не найден');
     }
 
-    return res.status(OK).json(user);
+    res.status(OK).json(user);
   } catch (error) {
-    return next(error);
+    if (error instanceof mongoose.Error.ValidationError) {
+      next(new ValidationError('Ошибка валидации данных'));
+    } else {
+      next(error);
+    }
   }
 };
 
@@ -159,21 +172,19 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(BAD_REQUEST).json({
-        message: 'Email и пароль обязательны для заполнения',
-      });
+      throw new ValidationError('Email и пароль обязательны для заполнения');
     }
 
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
-      return res.status(UNAUTHORIZED).json({ message: 'Неправильные почта или пароль' });
+      throw new AuthError('Неправильные почта или пароль');
     }
 
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
-      return res.status(UNAUTHORIZED).json({ message: 'Неправильные почта или пароль' });
+      throw new AuthError('Неправильные почта или пароль');
     }
 
     const token = jwt.sign(
@@ -184,25 +195,22 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     res.cookie('jwt', token, {
       httpOnly: true,
-      maxAge: 604800000, // 7 дней
-      secure: true,
-      sameSite: 'strict',
+      maxAge: 604800000,
     });
 
-    const savedUser = user.toObject();
     const userResponse = {
-      _id: savedUser._id,
-      name: savedUser.name,
-      about: savedUser.about,
-      avatar: savedUser.avatar,
-      email: savedUser.email,
+      _id: user._id,
+      name: user.name,
+      about: user.about,
+      avatar: user.avatar,
+      email: user.email,
     };
 
-    return res.status(OK).json({
+    res.status(OK).json({
       message: 'Успешная авторизация',
       user: userResponse,
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };

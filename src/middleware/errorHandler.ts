@@ -1,38 +1,47 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import {
-  AppError,
-} from '../errors';
+import { isCelebrateError, errors } from 'celebrate';
+import { AppError } from '../errors';
 import { errorLogger } from '../logger';
 import {
-  BAD_REQUEST,
-  CONFLICT,
-  INTERNAL_SERVER_ERROR,
-  UNAUTHORIZED,
+  BAD_REQUEST, CONFLICT, INTERNAL_SERVER_ERROR, UNAUTHORIZED,
 } from '../constants/status-codes';
 
 interface ErrorResponse {
   message: string;
-  errors?: string[];
+  validationErrors?: string[];
   stack?: string;
 }
 
-const errorHandler = (
+export const errorHandler = (
   error: Error | AppError,
   req: Request,
   res: Response,
 ) => {
   let statusCode = INTERNAL_SERVER_ERROR;
   let message = 'Внутренняя ошибка сервера';
-  let errors: string[] | undefined;
+  let validationErrors: string[] | undefined;
 
-  if (error instanceof AppError) {
+  if (isCelebrateError(error)) {
+    statusCode = BAD_REQUEST;
+    message = 'Ошибка валидации данных';
+
+    const celebrateValidationErrors: string[] = [];
+
+    error.details.forEach((joiError) => {
+      joiError.details.forEach((detail) => {
+        celebrateValidationErrors.push(detail.message);
+      });
+    });
+
+    validationErrors = celebrateValidationErrors;
+  } else if (error instanceof AppError) {
     statusCode = error.statusCode;
     message = error.message;
   } else if (error instanceof mongoose.Error.ValidationError) {
     statusCode = BAD_REQUEST;
     message = 'Ошибка валидации';
-    errors = Object.values(error.errors).map((err) => err.message);
+    validationErrors = Object.values(error.errors).map((err) => err.message);
   } else if (error instanceof mongoose.Error.CastError) {
     statusCode = BAD_REQUEST;
     message = 'Некорректный идентификатор';
@@ -49,8 +58,8 @@ const errorHandler = (
 
   const errorResponse: ErrorResponse = { message };
 
-  if (errors) {
-    errorResponse.errors = errors;
+  if (validationErrors && validationErrors.length > 0) {
+    errorResponse.validationErrors = validationErrors;
   }
 
   errorLogger.error('Error handled', {
@@ -58,10 +67,8 @@ const errorHandler = (
     statusCode,
     url: req.originalUrl,
     method: req.method,
-    stack: error.stack,
   });
 
   res.status(statusCode).json(errorResponse);
 };
-
-export default errorHandler;
+export const celebrateErrorHandler = errors();
