@@ -45,8 +45,8 @@ app.post('/signin', validateLogin, login);
 app.post('/signup', validateCreateUser, createUser);
 app.use('*path', notFoundHandler);
 
-app.use(celebrateErrors());
 app.use(logErrors);
+app.use(celebrateErrors());
 app.use(errorHandler);
 
 app.listen(PORT, () => {

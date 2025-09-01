@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { isCelebrateError, errors } from 'celebrate';
 import { AppError } from '../errors';
@@ -17,6 +17,8 @@ export const errorHandler = (
   error: Error | AppError,
   req: Request,
   res: Response,
+  // eslint-disable-next-line no-unused-vars
+  next: NextFunction,
 ) => {
   let statusCode = INTERNAL_SERVER_ERROR;
   let message = 'Внутренняя ошибка сервера';
@@ -70,5 +72,6 @@ export const errorHandler = (
   });
 
   res.status(statusCode).json(errorResponse);
+  next();
 };
 export const celebrateErrorHandler = errors();
